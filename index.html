@@ -1,0 +1,281 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title>test place check</title>
+		<style type="text/css">
+			#wrapper {
+				width: 600px;
+				margin: 0 auto;
+				padding: 20px 0;
+			}
+			#supportText {
+				font-size: 12px;
+				color: #888;
+			}
+			#postPhoto, #submitBtn {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="wrapper">
+			<h1>Test facebook checkin and upload photo from mobile</h1>
+			<p id="supportText"></p>
+			<form action="" method="post" enctype="multipart/form-data" id="dataform">
+				<input type="file" capture="camera" id="selectFile" name="photos[]" />
+				<a href="#" id="postPhoto">checkin and post the photo on facebook</a>
+				
+				<div id="list"></div>
+				<input type="submit" value="上傳" id="submitBtn" />
+			</form>
+
+			<div>
+				<p id="geolocationOutput"></p>
+			</div>
+		</div>
+		<div id="fb-root"></div>
+		
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<script>
+			window.fbAsyncInit = function() {
+		        FB.init({
+					appId      : '256572407795256',
+					xfbml      : true,
+					version    : 'v1.0'
+		        });
+
+		        FB.getLoginStatus(function(response) {
+					if (response.status === 'connected') {
+						console.log('connected');
+					
+						var uid = response.authResponse.userID;
+						var accessToken = response.authResponse.accessToken;
+						getPersonalInfo();
+					} else if (response.status === 'not_authorized') {
+						console.log('not authorized');
+						FBlogin();
+					} else {
+					// the user isn't logged in to Facebook.
+						console.log('not log in');
+						FBlogin();
+					}
+				});
+		    };
+
+		    $(document).ready(function(){
+		    	var currentPos = getLocation();
+		    	var form = document.getElementById('dataform');
+		    	
+		    	var fileSelect = document.getElementById('selectFile');
+		    	var placeInfo = {/*"name": "my desk",*/ "location": {"city": "Taipei", "country": "Taiwan", "latitude": currentPos.lat, "longitude": currentPos.lon}};
+		    	
+		    	$('#postPhoto').click(function(){
+		    		
+		    		// FB.api('/me/photos', 'post', {message: 'test', url: 'http://www.trans-high.com/uploads/images/201304/01/HUANIU_APPLE01.jpg', place: placeInfo}, function(res){
+		    		// 	// console.log('gogogo ' + res);
+		    		// 	window.testPhotoRes = res;
+		    		// });
+		    		var placeData = {
+		    			"place": "115143051888900",
+		    			"coordinates": JSON.stringify({
+		    				"latitude": 13.74440210243,
+		    				"longitude": 100.54056655609
+		    			})
+		    		};
+		    		FB.api('/me/checkins', placeData, 'POST', function(e){
+		    			console.log('check in res: ' + e);
+		    			window.testPhotoRes = e;
+		    			// if (e.success) {
+		    			// 	console.log('successfully checkin');
+		    			// 	if (e.result) {
+		    			// 		console.log('successfully checkin result');
+		    			// 		return;
+		    			// 	}
+		    			// } else if (e.cancelled) {
+		    			// 	console.log('user cancelled');
+		    			// 	return;
+		    			// } else {
+		    			// 	console.log('other problem');
+		    			// 	return;
+		    			// }
+		    		});
+		    	});
+		    	if (checkFileSupport()) {
+		    		var files;
+		    		$('#selectFile').on('change', function(evt){
+			    		files = evt.target.files;
+			    		console.log('on change get files: ' + files);
+			    // 		var output = [];
+					    for (var i = 0; i < files.length; i++) {
+					    	var f = files[i];
+					    	// Only process image files.
+					  //   	if (!f.type.match('image.*')) {
+					  //   		continue;
+					  //   	}
+
+					    	var reader = new FileReader(); //alert('reader ' + reader);
+
+					    	reader.onload = (function(theFile){
+					    		return function(e) {
+					    			//render thumbnail
+					    			var span = document.createElement('span');
+									span.innerHTML = ['<img class="thumb" src="', e.target.result, '" title="', escape(theFile.name), '" width="200"/>'].join('');
+									document.getElementById('list').appendChild(span, null);
+							// 		alert('list obj ' + document.getElementById('list'));
+								};
+					    	})(f);
+					    	//read in the image file as a data URL
+					    	reader.readAsDataURL(f);
+					    	$('#submitBtn').fadeIn();
+					    }
+
+			    	});
+			    	form.onsubmit = function(event) {
+			    		uploadFiles(event, files);
+			    	}
+		    	}
+
+		    	
+		    	
+		    });
+
+		    function FBlogin() {
+		    	FB.login(function(res){
+		    		if (res.authResponse) {
+		    			console.log('welcome');
+					} else {
+						console.log('cancelled login');
+					}
+		    	}, {scope: 'email, user_likes, user_photos, user_location, user_status, read_stream, publish_stream, publish_actions, user_checkins, publish_checkins'});
+		    }
+
+		    function getPersonalInfo() {
+		    	FB.api('/me?fields=posts', function(response){
+		    		// console.log('good to see you ' + response.name);
+		    		// console.log(Object.keys(response));
+		    		window.userPostsData = response.posts.data;
+		    	});
+		    }
+
+		    function checkFileSupport() {
+		    	if (window.File && window.FileReader && window.FileList && window.Blob) {
+		    		// alert('all the file APIs are supported');
+		    		$('#supportText').html('all the file APIs are supported');
+		    		return true;
+		    	} else {
+		    		// alert('the file APIs are not fully supported in this browser');
+		    		$('#supportText').html('the file APIs are not fully supported in this browser');
+		    		return false;
+		    	}
+		    }
+
+		    function uploadFiles(event, files) {  console.log('uploadFiles: ' + files);
+		    	event.stopPropagation();
+	    		event.preventDefault();
+	    		var formData = new FormData();
+
+	    		for (var i = 0; i < files.length; i++) {
+	    			var file = files[i];
+	    			// if (!file.type.match('image.*')) {
+	    			// 	continue;
+	    			// }
+
+	    			formData.append('files', file);
+	    		}
+	    		// $.each(files, function(key, value){
+	    		// 	// console.log('key: ' + key); //0
+	    		// 	// console.log('value: ' + value); //[object File]
+	    		// 	console.log('value:: ' + Object.keys(value)); //webkitRelativePath,lastModifiedDate,name,type,size
+	    		// 	formData.append('photo', value);
+	    		// });
+
+				// formData.append('photo', files);
+
+	    		$.ajax({
+	    			url: 'upload.php?files',
+	    			type: 'POST',
+	    			data: formData,
+	    			cache: false,
+	    			// dataType: 'json',
+	    			processData: false, //Don't process the files
+	    			contentType: false, //Set content type to false
+	    			success: function(data, textStatus, jqXHR) {
+	    				if (typeof data.error === 'undefined') {
+	    					//success so call function to submit
+	    					console.log('ajax upload data: ' + data);
+	    					submitForm(event, data);
+	    				} else {
+	    					//Handle errors here
+	    					console.log('ERRORS0 ' + data.error);
+	    				}
+	    			},
+	    			error: function(jqXHR, textStatus, errorThrown) {
+	    				//Handle errors here
+	    				console.log('ERRORS1 ' + textStatus); 
+	    			}
+	    		});
+		    }
+
+		    function submitForm(event, data) {
+		    	$form = $(event.target); //?
+		    	var submitFormData = $form.serialize(); //?
+
+		    	submitFormData = submitFormData + '&filenames[]=' + data;
+		    	console.log('submitFormData: ' + submitFormData);
+
+		    	$.ajax({
+		    		url: 'upload.php',
+		    		type: 'POST',
+		    		data: submitFormData,
+		    		cache: false,
+		    		// dataType: 'json',
+		    		success: function(data, textStatus, jqXHR) {
+		    			if (typeof data.error === 'undefined') {
+		    				console.log('SUCESS: ' + data);
+		    				$('#postPhoto').fadeIn();
+		    			} else {
+		    				console.log('ERRORS2: ' + data.error);
+		    			}
+
+		    		},
+		    		error: function(jqXHR, textStatus, errorThrown) {
+		    			console.log('ERRORS3: ' + data.error);
+		    		},
+		    		complete: function() {
+		    			console.log('complete');
+		    		}
+		    	})
+		    }
+
+		    function getLocation() {
+		    	var latitude;
+		    	var longitude;
+		    	var geoOut = document.getElementById('geolocationOutput');
+		    	if (!navigator.geolocation) {
+		    		geoOut.innerHTML = "<p>Geolocation is not support in your browser</p>";
+		    		return;
+		    	}
+
+		    	function success(position) {
+		    		latitude = position.coords.latitude;
+		    		longitude = position.coords.longitude;
+		    		geoOut.innerHTML = "<p>Latitude is  " + latitude + '° <br>Longitude is ' + longitude + '°</p>';
+		    	}
+		    	function error() {
+		    		geoOut.innerHTML = "<p>Locating...</p>";
+		    	}
+		    	navigator.geolocation.getCurrentPosition(success, error);
+		    	return {"lat": latitude, "lon": longitude};
+		    }
+
+			(function(d, s, id){
+				var js, fjs = d.getElementsByTagName(s)[0];
+				if (d.getElementById(id)) {return;}
+				js = d.createElement(s); js.id = id;
+				js.src = "//connect.facebook.net/en_US/sdk.js";
+				fjs.parentNode.insertBefore(js, fjs);
+			}(document, 'script', 'facebook-jssdk'));
+		</script>
+	</body>
+</html>
